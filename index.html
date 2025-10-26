@@ -32,6 +32,8 @@
         .section-title { font-size: 0.875rem; font-weight: 600; color: #24292f; margin-bottom: 0.5rem; text-transform: uppercase; letter-spacing: 0.5px; }
         .form-label { font-weight: 500; color: #24292f; font-size: 0.875rem; }
         .node-id-badge { font-size: 0.75rem; color: #57606a; background: #ddf4ff; padding: 0.125rem 0.5rem; border-radius: 12px; display: inline-block; }
+        .import-textarea { font-family: 'Courier New', monospace; font-size: 0.875rem; min-height: 300px; }
+        .modal-header { background: #f6f8fa; border-bottom: 1px solid #d0d7de; }
     </style>
 </head>
 <body>
@@ -43,6 +45,9 @@
                 <strong>xsukax Flowchart Maker</strong>
             </span>
             <div>
+                <button class="btn btn-sm btn-info me-2" onclick="openImportModal()" title="Import Mermaid Code">
+                    <i class="bi bi-upload me-1"></i> Import
+                </button>
                 <button class="btn btn-sm btn-light me-2" onclick="exportPNG()" title="Export as PNG">
                     <i class="bi bi-file-earmark-image me-1"></i> PNG
                 </button>
@@ -55,6 +60,35 @@
             </div>
         </div>
     </nav>
+
+    <!-- Import Modal -->
+    <div class="modal fade" id="importModal" tabindex="-1" aria-labelledby="importModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title fw-semibold" id="importModalLabel">
+                        <i class="bi bi-code-square me-2"></i>Import Mermaid Flowchart Code
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="alert alert-info border-0 small" style="background: #ddf4ff; color: #0969da;">
+                        <strong><i class="bi bi-info-circle me-1"></i>Instructions:</strong>
+                        <p class="mb-0 mt-1">Paste your Mermaid flowchart code below. The code will be parsed and loaded into the editor.</p>
+                    </div>
+                    <label for="importTextarea" class="form-label fw-semibold">Mermaid Code:</label>
+                    <textarea class="form-control import-textarea" id="importTextarea" placeholder="flowchart TB&#10;    A[Start]&#10;    B[Process]&#10;    A --> B&#10;    style A fill:#4CAF50,color:#fff"></textarea>
+                    <div id="importError" class="alert alert-danger mt-3 d-none"></div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-primary" onclick="importFlowchart()">
+                        <i class="bi bi-check-lg me-1"></i> Import
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
 
     <!-- Main Container -->
     <div class="container-fluid px-3">
@@ -121,7 +155,7 @@
                                 <ul class="mb-0 mt-1 ps-3">
                                     <li>Add nodes first, then create connections</li>
                                     <li>Use diamond shapes for decision points</li>
-                                    <li>Minimum 2 nodes required</li>
+                                    <li>Import existing Mermaid code via Import button</li>
                                 </ul>
                             </div>
                         </div>
@@ -173,29 +207,48 @@
         let connections = [];
         let nodeCounter = 0;
         let updateTimeout = null;
+        let importModal = null;
 
-        // Node Shapes Configuration
+        // Node Shapes Configuration with all possible patterns
         const nodeShapes = {
-            'rectangle': { label: 'Rectangle', syntax: (id, label) => `${id}[${label}]` },
-            'rounded': { label: 'Rounded Rectangle', syntax: (id, label) => `${id}(${label})` },
-            'stadium': { label: 'Stadium', syntax: (id, label) => `${id}([${label}])` },
-            'subroutine': { label: 'Subroutine', syntax: (id, label) => `${id}[[${label}]]` },
-            'cylindrical': { label: 'Cylindrical', syntax: (id, label) => `${id}[(${label})]` },
-            'circle': { label: 'Circle', syntax: (id, label) => `${id}((${label}))` },
-            'asymmetric': { label: 'Asymmetric', syntax: (id, label) => `${id}>${label}]` },
-            'rhombus': { label: 'Rhombus', syntax: (id, label) => `${id}{${label}}` },
-            'hexagon': { label: 'Hexagon', syntax: (id, label) => `${id}{{${label}}}` },
-            'parallelogram': { label: 'Parallelogram', syntax: (id, label) => `${id}[/${label}/]` },
-            'trapezoid': { label: 'Trapezoid', syntax: (id, label) => `${id}[\\${label}\\]` }
+            'hexagon': { label: 'Hexagon', pattern: /\{\{(.+?)\}\}/ },
+            'subroutine': { label: 'Subroutine', pattern: /\[\[(.+?)\]\]/ },
+            'cylindrical': { label: 'Cylindrical', pattern: /\[\((.+?)\)\]/ },
+            'stadium': { label: 'Stadium', pattern: /\(\[(.+?)\]\)/ },
+            'circle': { label: 'Circle', pattern: /\(\((.+?)\)\)/ },
+            'asymmetric': { label: 'Asymmetric', pattern: />(.+?)\]/ },
+            'rhombus': { label: 'Rhombus', pattern: /\{(.+?)\}/ },
+            'trapezoid': { label: 'Trapezoid', pattern: /\[\\(.+?)\\\]/ },
+            'parallelogram': { label: 'Parallelogram', pattern: /\[\/(.+?)\/\]/ },
+            'rounded': { label: 'Rounded Rectangle', pattern: /\((.+?)\)/ },
+            'rectangle': { label: 'Rectangle', pattern: /\[(.+?)\]/ }
         };
+
+        // Generate syntax for each shape
+        Object.keys(nodeShapes).forEach(key => {
+            const shape = nodeShapes[key];
+            switch(key) {
+                case 'rectangle': shape.syntax = (id, label) => `${id}[${label}]`; break;
+                case 'rounded': shape.syntax = (id, label) => `${id}(${label})`; break;
+                case 'stadium': shape.syntax = (id, label) => `${id}([${label}])`; break;
+                case 'subroutine': shape.syntax = (id, label) => `${id}[[${label}]]`; break;
+                case 'cylindrical': shape.syntax = (id, label) => `${id}[(${label})]`; break;
+                case 'circle': shape.syntax = (id, label) => `${id}((${label}))`; break;
+                case 'asymmetric': shape.syntax = (id, label) => `${id}>${label}]`; break;
+                case 'rhombus': shape.syntax = (id, label) => `${id}{${label}}`; break;
+                case 'hexagon': shape.syntax = (id, label) => `${id}{{${label}}}`; break;
+                case 'parallelogram': shape.syntax = (id, label) => `${id}[/${label}/]`; break;
+                case 'trapezoid': shape.syntax = (id, label) => `${id}[\\${label}\\]`; break;
+            }
+        });
 
         // Connection Types
         const connectionTypes = {
-            'solid': { label: 'Solid Arrow', syntax: '-->' },
-            'dotted': { label: 'Dotted Arrow', syntax: '-..->'},
-            'thick': { label: 'Thick Arrow', syntax: '==>' },
-            'open': { label: 'Open Link', syntax: '---' },
-            'dotted-open': { label: 'Dotted Open Link', syntax: '-.-' }
+            'thick': { label: 'Thick Arrow', syntax: '==>', pattern: '==>' },
+            'dotted': { label: 'Dotted Arrow', syntax: '-..->',pattern: '-\\.\\.->' },
+            'solid': { label: 'Solid Arrow', syntax: '-->', pattern: '-->' },
+            'dotted-open': { label: 'Dotted Open Link', syntax: '-.-', pattern: '-\\.-' },
+            'open': { label: 'Open Link', syntax: '---', pattern: '---' }
         };
 
         // Initialize with default sample
@@ -217,6 +270,175 @@
             nodeCounter = 4;
             renderUI();
             updateChart();
+        }
+
+        // Open import modal
+        function openImportModal() {
+            if (!importModal) {
+                importModal = new bootstrap.Modal(document.getElementById('importModal'));
+            }
+            document.getElementById('importTextarea').value = '';
+            document.getElementById('importError').classList.add('d-none');
+            importModal.show();
+        }
+
+        // Parse and import flowchart
+        function importFlowchart() {
+            const code = document.getElementById('importTextarea').value.trim();
+            const errorDiv = document.getElementById('importError');
+            
+            if (!code) {
+                errorDiv.textContent = 'Please enter Mermaid flowchart code.';
+                errorDiv.classList.remove('d-none');
+                return;
+            }
+
+            try {
+                const result = parseMermaidCode(code);
+                
+                if (result.nodes.length === 0) {
+                    errorDiv.textContent = 'No nodes found in the code. Please check your Mermaid syntax.';
+                    errorDiv.classList.remove('d-none');
+                    return;
+                }
+
+                // Update application state
+                nodes = result.nodes;
+                connections = result.connections;
+                nodeCounter = nodes.length;
+                
+                // Update direction if found
+                if (result.direction) {
+                    document.getElementById('chartDirection').value = result.direction;
+                }
+
+                // Close modal and update UI
+                importModal.hide();
+                renderUI();
+                updateChart();
+                showToast('Success!', `Imported ${nodes.length} nodes and ${connections.length} connections`, 'success');
+            } catch (error) {
+                errorDiv.textContent = `Import failed: ${error.message}`;
+                errorDiv.classList.remove('d-none');
+            }
+        }
+
+        // Parse Mermaid flowchart code - COMPLETELY REWRITTEN
+        function parseMermaidCode(code) {
+            const lines = code.split('\n').map(line => line.trim()).filter(line => line && !line.startsWith('%%'));
+            const parsedNodes = [];
+            const parsedConnections = [];
+            const nodeMap = new Map();
+            const styleMap = new Map();
+            let direction = 'TB';
+            let nodeIdCounter = 0;
+
+            // Extract direction (TD/TB, BT, LR, RL)
+            const directionLine = lines.find(line => line.match(/^flowchart\s+(TB|BT|LR|RL|TD)/i));
+            if (directionLine) {
+                const match = directionLine.match(/^flowchart\s+(TB|BT|LR|RL|TD)/i);
+                if (match) {
+                    direction = match[1].toUpperCase();
+                    if (direction === 'TD') direction = 'TB';
+                }
+            }
+
+            // First pass: Extract styles
+            lines.forEach(line => {
+                const styleMatch = line.match(/^\s*style\s+(\w+)\s+fill:([^,]+)(?:,.*?color:([^,\s]+))?/);
+                if (styleMatch) {
+                    const nodeId = styleMatch[1];
+                    const fillColor = styleMatch[2].trim();
+                    const textColor = styleMatch[3] ? styleMatch[3].trim() : '#ffffff';
+                    styleMap.set(nodeId, { color: fillColor, textColor: textColor });
+                }
+            });
+
+            // Second pass: Extract ALL nodes (order matters - check complex shapes first)
+            lines.forEach(line => {
+                if (line.startsWith('flowchart') || line.startsWith('style') || line.startsWith('%%')) {
+                    return;
+                }
+
+                // Extract all node definitions from this line
+                for (const [shapeKey, shapeConfig] of Object.entries(nodeShapes)) {
+                    // Create regex to find: nodeId + shape pattern
+                    const fullPattern = new RegExp(`(\\w+)${shapeConfig.pattern.source}`, 'g');
+                    let match;
+                    
+                    while ((match = fullPattern.exec(line)) !== null) {
+                        const nodeId = match[1];
+                        const label = match[2];
+                        
+                        if (!nodeMap.has(nodeId)) {
+                            nodeIdCounter++;
+                            const style = styleMap.get(nodeId) || { color: '#2196F3', textColor: '#ffffff' };
+                            
+                            parsedNodes.push({
+                                id: `node${nodeIdCounter}`,
+                                originalId: nodeId,
+                                label: label,
+                                shape: shapeKey,
+                                color: style.color,
+                                textColor: style.textColor
+                            });
+                            
+                            nodeMap.set(nodeId, `node${nodeIdCounter}`);
+                        }
+                    }
+                }
+            });
+
+            // Third pass: Extract connections (check all connection types)
+            lines.forEach(line => {
+                if (line.startsWith('flowchart') || line.startsWith('style') || line.startsWith('%%')) {
+                    return;
+                }
+
+                // Try each connection type in order (specific to general)
+                for (const [connKey, connConfig] of Object.entries(connectionTypes)) {
+                    // Pattern: nodeId + connection + optional label + nodeId
+                    const connPattern = new RegExp(
+                        `(\\w+)\\s*${connConfig.pattern}(?:\\|([^|]+)\\|)?\\s*(\\w+)`, 
+                        'g'
+                    );
+                    
+                    let match;
+                    while ((match = connPattern.exec(line)) !== null) {
+                        const fromId = match[1];
+                        const label = match[2] ? match[2].trim() : '';
+                        const toId = match[3];
+                        
+                        const fromNode = nodeMap.get(fromId);
+                        const toNode = nodeMap.get(toId);
+                        
+                        if (fromNode && toNode) {
+                            // Check if this exact connection already exists
+                            const exists = parsedConnections.some(conn => 
+                                conn.from === fromNode && 
+                                conn.to === toNode && 
+                                conn.type === connKey &&
+                                conn.label === label
+                            );
+                            
+                            if (!exists) {
+                                parsedConnections.push({
+                                    from: fromNode,
+                                    to: toNode,
+                                    type: connKey,
+                                    label: label
+                                });
+                            }
+                        }
+                    }
+                }
+            });
+
+            return {
+                nodes: parsedNodes,
+                connections: parsedConnections,
+                direction: direction
+            };
         }
 
         // Add new node
@@ -241,13 +463,11 @@
                 return;
             }
 
-            // Check if node has connections
             const hasConnections = connections.some(conn => 
                 conn.from === nodeId || conn.to === nodeId
             );
 
             if (hasConnections) {
-                // Remove connections involving this node
                 connections = connections.filter(conn => 
                     conn.from !== nodeId && conn.to !== nodeId
                 );
@@ -515,15 +735,12 @@
                     return;
                 }
 
-                // Get SVG dimensions
                 const bbox = svg.getBBox();
                 const viewBox = svg.viewBox.baseVal;
                 
-                // Determine actual width and height
                 let width = svg.width.baseVal.value || viewBox.width || bbox.width;
                 let height = svg.height.baseVal.value || viewBox.height || bbox.height;
                 
-                // Clone SVG and set explicit dimensions
                 const svgClone = svg.cloneNode(true);
                 svgClone.setAttribute('width', width);
                 svgClone.setAttribute('height', height);
@@ -534,7 +751,6 @@
                 const img = new Image();
 
                 img.onload = function() {
-                    // Set canvas size to 3x for high resolution
                     canvas.width = width * 3;
                     canvas.height = height * 3;
                     ctx.scale(3, 3);
