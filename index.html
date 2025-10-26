@@ -1,0 +1,644 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>xsukax Flowchart Maker</title>
+    
+    <!-- Bootstrap 5.3.2 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    
+    <!-- Bootstrap Icons -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
+    
+    <style>
+        body { background: #f6f8fa; min-height: 100vh; padding-bottom: 2rem; }
+        .navbar { background: #24292f; border-bottom: 1px solid #d0d7de; }
+        .main-container { background: white; border-radius: 6px; border: 1px solid #d0d7de; margin-top: 1.5rem; }
+        .card { border: 1px solid #d0d7de; border-radius: 6px; }
+        .card-header { background: #f6f8fa; border-bottom: 1px solid #d0d7de; padding: 1rem; }
+        .node-item, .connection-item { background: #f6f8fa; border: 1px solid #d0d7de; border-radius: 6px; padding: 0.875rem; margin-bottom: 0.75rem; transition: border-color 0.2s; }
+        .node-item:hover, .connection-item:hover { border-color: #0969da; }
+        .color-picker { width: 50px; height: 50px; border-radius: 6px; border: 1px solid #d0d7de; cursor: pointer; }
+        .preview-area { min-height: 500px; background: white; border-radius: 6px; padding: 1.5rem; display: flex; align-items: center; justify-content: center; border: 1px solid #d0d7de; }
+        .loading-spinner { display: none; }
+        .loading-spinner.active { display: block; }
+        .btn-primary { background-color: #0969da; border-color: #0969da; }
+        .btn-primary:hover { background-color: #0550ae; border-color: #0550ae; }
+        .btn-success { background-color: #1a7f37; border-color: #1a7f37; }
+        .btn-success:hover { background-color: #116329; border-color: #116329; }
+        .scrollable-content { max-height: 70vh; overflow-y: auto; }
+        .toast-container { position: fixed; top: 80px; right: 20px; z-index: 9999; }
+        .section-title { font-size: 0.875rem; font-weight: 600; color: #24292f; margin-bottom: 0.5rem; text-transform: uppercase; letter-spacing: 0.5px; }
+        .form-label { font-weight: 500; color: #24292f; font-size: 0.875rem; }
+        .node-id-badge { font-size: 0.75rem; color: #57606a; background: #ddf4ff; padding: 0.125rem 0.5rem; border-radius: 12px; display: inline-block; }
+    </style>
+</head>
+<body>
+    <!-- Navigation Bar -->
+    <nav class="navbar navbar-dark">
+        <div class="container-fluid">
+            <span class="navbar-brand mb-0 h1">
+                <i class="bi bi-diagram-3 me-2"></i>
+                <strong>xsukax Flowchart Maker</strong>
+            </span>
+            <div>
+                <button class="btn btn-sm btn-light me-2" onclick="exportPNG()" title="Export as PNG">
+                    <i class="bi bi-file-earmark-image me-1"></i> PNG
+                </button>
+                <button class="btn btn-sm btn-light me-2" onclick="exportSVG()" title="Export as SVG">
+                    <i class="bi bi-filetype-svg me-1"></i> SVG
+                </button>
+                <button class="btn btn-sm btn-light" onclick="exportMarkdown()" title="Export as Markdown">
+                    <i class="bi bi-markdown me-1"></i> MD
+                </button>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Container -->
+    <div class="container-fluid px-3">
+        <div class="main-container">
+            <div class="row g-0">
+                <!-- Left Panel - Flowchart Builder -->
+                <div class="col-lg-5 p-3 border-end">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="mb-0 fw-semibold"><i class="bi bi-sliders me-2"></i>Flowchart Settings</h5>
+                        </div>
+                        <div class="card-body scrollable-content">
+                            <!-- Chart Configuration -->
+                            <div class="mb-3">
+                                <div class="section-title"><i class="bi bi-text-left me-1"></i> Chart Configuration</div>
+                                <div class="mb-3">
+                                    <label class="form-label">Title</label>
+                                    <input type="text" class="form-control form-control-sm" id="chartTitle" value="Sample Workflow" onchange="updateChart()">
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">Direction</label>
+                                    <select class="form-select form-select-sm" id="chartDirection" onchange="updateChart()">
+                                        <option value="TB">Top to Bottom (TB)</option>
+                                        <option value="BT">Bottom to Top (BT)</option>
+                                        <option value="LR">Left to Right (LR)</option>
+                                        <option value="RL">Right to Left (RL)</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <hr class="my-3">
+
+                            <!-- Nodes Section -->
+                            <div class="mb-3">
+                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                    <div class="section-title mb-0">
+                                        <i class="bi bi-boxes me-1"></i> Nodes (<span id="nodeCount">0</span>)
+                                    </div>
+                                    <button class="btn btn-sm btn-primary" onclick="addNode()">
+                                        <i class="bi bi-plus-lg me-1"></i> Add
+                                    </button>
+                                </div>
+                                <div id="nodesList"></div>
+                            </div>
+
+                            <hr class="my-3">
+
+                            <!-- Connections Section -->
+                            <div class="mb-3">
+                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                    <div class="section-title mb-0">
+                                        <i class="bi bi-arrow-left-right me-1"></i> Connections (<span id="connectionCount">0</span>)
+                                    </div>
+                                    <button class="btn btn-sm btn-success" id="addConnectionBtn" onclick="addConnection()">
+                                        <i class="bi bi-plus-lg me-1"></i> Add
+                                    </button>
+                                </div>
+                                <div id="connectionsList"></div>
+                            </div>
+
+                            <!-- Tips Alert -->
+                            <div class="alert alert-primary border-0 small" style="background: #ddf4ff; color: #0969da;">
+                                <strong><i class="bi bi-info-circle me-1"></i>Tips:</strong>
+                                <ul class="mb-0 mt-1 ps-3">
+                                    <li>Add nodes first, then create connections</li>
+                                    <li>Use diamond shapes for decision points</li>
+                                    <li>Minimum 2 nodes required</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Right Panel - Live Preview -->
+                <div class="col-lg-7 p-3">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="mb-0 fw-semibold"><i class="bi bi-eye me-2"></i>Live Preview</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="preview-area" id="previewArea">
+                                <div class="loading-spinner text-center" id="loadingSpinner">
+                                    <div class="spinner-border text-primary" role="status">
+                                        <span class="visually-hidden">Loading...</span>
+                                    </div>
+                                    <p class="mt-2 text-muted small">Rendering flowchart...</p>
+                                </div>
+                                <div id="mermaidPreview"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Container -->
+    <div class="toast-container"></div>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <!-- Mermaid JS -->
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@11.12.0/dist/mermaid.min.js"></script>
+
+    <script>
+        // Initialize Mermaid
+        mermaid.initialize({ 
+            startOnLoad: false,
+            theme: 'base',
+            securityLevel: 'loose'
+        });
+
+        // Application State
+        let nodes = [];
+        let connections = [];
+        let nodeCounter = 0;
+        let updateTimeout = null;
+
+        // Node Shapes Configuration
+        const nodeShapes = {
+            'rectangle': { label: 'Rectangle', syntax: (id, label) => `${id}[${label}]` },
+            'rounded': { label: 'Rounded Rectangle', syntax: (id, label) => `${id}(${label})` },
+            'stadium': { label: 'Stadium', syntax: (id, label) => `${id}([${label}])` },
+            'subroutine': { label: 'Subroutine', syntax: (id, label) => `${id}[[${label}]]` },
+            'cylindrical': { label: 'Cylindrical', syntax: (id, label) => `${id}[(${label})]` },
+            'circle': { label: 'Circle', syntax: (id, label) => `${id}((${label}))` },
+            'asymmetric': { label: 'Asymmetric', syntax: (id, label) => `${id}>${label}]` },
+            'rhombus': { label: 'Rhombus', syntax: (id, label) => `${id}{${label}}` },
+            'hexagon': { label: 'Hexagon', syntax: (id, label) => `${id}{{${label}}}` },
+            'parallelogram': { label: 'Parallelogram', syntax: (id, label) => `${id}[/${label}/]` },
+            'trapezoid': { label: 'Trapezoid', syntax: (id, label) => `${id}[\\${label}\\]` }
+        };
+
+        // Connection Types
+        const connectionTypes = {
+            'solid': { label: 'Solid Arrow', syntax: '-->' },
+            'dotted': { label: 'Dotted Arrow', syntax: '-..->'},
+            'thick': { label: 'Thick Arrow', syntax: '==>' },
+            'open': { label: 'Open Link', syntax: '---' },
+            'dotted-open': { label: 'Dotted Open Link', syntax: '-.-' }
+        };
+
+        // Initialize with default sample
+        function initializeDefaultSample() {
+            nodes = [
+                { id: 'node1', label: 'Start', shape: 'stadium', color: '#4CAF50', textColor: '#ffffff' },
+                { id: 'node2', label: 'Process Data', shape: 'rectangle', color: '#2196F3', textColor: '#ffffff' },
+                { id: 'node3', label: 'Is Valid?', shape: 'rhombus', color: '#FF9800', textColor: '#ffffff' },
+                { id: 'node4', label: 'End', shape: 'stadium', color: '#F44336', textColor: '#ffffff' }
+            ];
+
+            connections = [
+                { from: 'node1', to: 'node2', type: 'solid', label: '' },
+                { from: 'node2', to: 'node3', type: 'solid', label: '' },
+                { from: 'node3', to: 'node4', type: 'solid', label: 'Yes' },
+                { from: 'node3', to: 'node2', type: 'dotted', label: 'No' }
+            ];
+
+            nodeCounter = 4;
+            renderUI();
+            updateChart();
+        }
+
+        // Add new node
+        function addNode() {
+            nodeCounter++;
+            const newNode = {
+                id: `node${nodeCounter}`,
+                label: `Node ${nodeCounter}`,
+                shape: 'rectangle',
+                color: '#2196F3',
+                textColor: '#ffffff'
+            };
+            nodes.push(newNode);
+            renderUI();
+            updateChart();
+        }
+
+        // Delete node
+        function deleteNode(nodeId) {
+            if (nodes.length <= 2) {
+                showToast('Cannot delete node', 'Minimum 2 nodes required', 'warning');
+                return;
+            }
+
+            // Check if node has connections
+            const hasConnections = connections.some(conn => 
+                conn.from === nodeId || conn.to === nodeId
+            );
+
+            if (hasConnections) {
+                // Remove connections involving this node
+                connections = connections.filter(conn => 
+                    conn.from !== nodeId && conn.to !== nodeId
+                );
+            }
+
+            nodes = nodes.filter(node => node.id !== nodeId);
+            renderUI();
+            updateChart();
+        }
+
+        // Add new connection
+        function addConnection() {
+            if (nodes.length < 2) {
+                showToast('Cannot add connection', 'Need at least 2 nodes', 'warning');
+                return;
+            }
+
+            const newConnection = {
+                from: nodes[0].id,
+                to: nodes[1].id,
+                type: 'solid',
+                label: ''
+            };
+            connections.push(newConnection);
+            renderUI();
+            updateChart();
+        }
+
+        // Delete connection
+        function deleteConnection(index) {
+            connections.splice(index, 1);
+            renderUI();
+            updateChart();
+        }
+
+        // Update node property
+        function updateNode(nodeId, property, value) {
+            const node = nodes.find(n => n.id === nodeId);
+            if (node) {
+                node[property] = value;
+                updateChart();
+            }
+        }
+
+        // Update connection property
+        function updateConnection(index, property, value) {
+            if (connections[index]) {
+                connections[index][property] = value;
+                updateChart();
+            }
+        }
+
+        // Render UI
+        function renderUI() {
+            renderNodes();
+            renderConnections();
+            updateCounts();
+            updateConnectionButton();
+        }
+
+        // Render nodes list
+        function renderNodes() {
+            const nodesList = document.getElementById('nodesList');
+            nodesList.innerHTML = nodes.map(node => `
+                <div class="node-item">
+                    <div class="d-flex align-items-center justify-content-between mb-2">
+                        <span class="node-id-badge"><i class="bi bi-tag me-1"></i>${node.id}</span>
+                        <button class="btn btn-sm btn-outline-danger" 
+                                onclick="deleteNode('${node.id}')"
+                                ${nodes.length <= 2 ? 'disabled' : ''}>
+                            <i class="bi bi-trash"></i>
+                        </button>
+                    </div>
+                    <div class="row g-2 mb-2">
+                        <div class="col-auto">
+                            <div class="text-center">
+                                <input type="color" 
+                                       class="color-picker mb-1" 
+                                       value="${node.color}" 
+                                       onchange="updateNode('${node.id}', 'color', this.value)"
+                                       title="Background Color">
+                                <small class="d-block text-muted" style="font-size: 0.7rem;">BG</small>
+                            </div>
+                        </div>
+                        <div class="col-auto">
+                            <div class="text-center">
+                                <input type="color" 
+                                       class="color-picker mb-1" 
+                                       value="${node.textColor}" 
+                                       onchange="updateNode('${node.id}', 'textColor', this.value)"
+                                       title="Text Color">
+                                <small class="d-block text-muted" style="font-size: 0.7rem;">Text</small>
+                            </div>
+                        </div>
+                        <div class="col">
+                            <select class="form-select form-select-sm" 
+                                    onchange="updateNode('${node.id}', 'shape', this.value)">
+                                ${Object.keys(nodeShapes).map(shape => `
+                                    <option value="${shape}" ${node.shape === shape ? 'selected' : ''}>
+                                        ${nodeShapes[shape].label}
+                                    </option>
+                                `).join('')}
+                            </select>
+                        </div>
+                    </div>
+                    <div>
+                        <input type="text" 
+                               class="form-control form-control-sm" 
+                               value="${node.label}" 
+                               onchange="updateNode('${node.id}', 'label', this.value)"
+                               placeholder="Node label">
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // Render connections list
+        function renderConnections() {
+            const connectionsList = document.getElementById('connectionsList');
+            
+            if (connections.length === 0) {
+                connectionsList.innerHTML = '<p class="text-muted text-center small">No connections yet</p>';
+                return;
+            }
+
+            connectionsList.innerHTML = connections.map((conn, index) => `
+                <div class="connection-item">
+                    <div class="d-flex justify-content-end mb-2">
+                        <button class="btn btn-sm btn-outline-danger" onclick="deleteConnection(${index})">
+                            <i class="bi bi-trash"></i>
+                        </button>
+                    </div>
+                    <div class="row g-2 mb-2">
+                        <div class="col">
+                            <label class="form-label small">From</label>
+                            <select class="form-select form-select-sm" 
+                                    onchange="updateConnection(${index}, 'from', this.value)">
+                                ${nodes.map(node => `
+                                    <option value="${node.id}" ${conn.from === node.id ? 'selected' : ''}>
+                                        ${node.label}
+                                    </option>
+                                `).join('')}
+                            </select>
+                        </div>
+                        <div class="col">
+                            <label class="form-label small">To</label>
+                            <select class="form-select form-select-sm" 
+                                    onchange="updateConnection(${index}, 'to', this.value)">
+                                ${nodes.map(node => `
+                                    <option value="${node.id}" ${conn.to === node.id ? 'selected' : ''}>
+                                        ${node.label}
+                                    </option>
+                                `).join('')}
+                            </select>
+                        </div>
+                    </div>
+                    <div class="row g-2">
+                        <div class="col">
+                            <label class="form-label small">Type</label>
+                            <select class="form-select form-select-sm" 
+                                    onchange="updateConnection(${index}, 'type', this.value)">
+                                ${Object.keys(connectionTypes).map(type => `
+                                    <option value="${type}" ${conn.type === type ? 'selected' : ''}>
+                                        ${connectionTypes[type].label}
+                                    </option>
+                                `).join('')}
+                            </select>
+                        </div>
+                        <div class="col">
+                            <label class="form-label small">Label</label>
+                            <input type="text" 
+                                   class="form-control form-control-sm" 
+                                   value="${conn.label || ''}" 
+                                   onchange="updateConnection(${index}, 'label', this.value)"
+                                   placeholder="Optional">
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // Update counts
+        function updateCounts() {
+            document.getElementById('nodeCount').textContent = nodes.length;
+            document.getElementById('connectionCount').textContent = connections.length;
+        }
+
+        // Update connection button state
+        function updateConnectionButton() {
+            const btn = document.getElementById('addConnectionBtn');
+            btn.disabled = nodes.length < 2;
+        }
+
+        // Generate Mermaid code
+        function generateMermaidCode() {
+            const direction = document.getElementById('chartDirection').value;
+            let code = `flowchart ${direction}\n`;
+
+            // Add nodes
+            nodes.forEach(node => {
+                const syntax = nodeShapes[node.shape].syntax;
+                code += `    ${syntax(node.id, node.label)}\n`;
+            });
+
+            code += '\n';
+
+            // Add connections
+            connections.forEach(conn => {
+                const connSyntax = connectionTypes[conn.type].syntax;
+                const label = conn.label ? `|${conn.label}|` : '';
+                code += `    ${conn.from} ${connSyntax}${label} ${conn.to}\n`;
+            });
+
+            code += '\n';
+
+            // Add styling
+            nodes.forEach(node => {
+                code += `    style ${node.id} fill:${node.color},stroke:#333,stroke-width:2px,color:${node.textColor}\n`;
+            });
+
+            return code;
+        }
+
+        // Update chart with debouncing
+        function updateChart() {
+            clearTimeout(updateTimeout);
+            updateTimeout = setTimeout(() => {
+                renderChart();
+            }, 300);
+        }
+
+        // Render chart
+        async function renderChart() {
+            const previewArea = document.getElementById('mermaidPreview');
+            const loadingSpinner = document.getElementById('loadingSpinner');
+            
+            try {
+                loadingSpinner.classList.add('active');
+                previewArea.innerHTML = '';
+
+                const mermaidCode = generateMermaidCode();
+                const uniqueId = `mermaid-${Date.now()}`;
+                
+                const { svg } = await mermaid.render(uniqueId, mermaidCode);
+                
+                previewArea.innerHTML = svg;
+                loadingSpinner.classList.remove('active');
+            } catch (error) {
+                loadingSpinner.classList.remove('active');
+                previewArea.innerHTML = `
+                    <div class="alert alert-danger w-100">
+                        <strong><i class="bi bi-exclamation-triangle me-2"></i>Error rendering flowchart</strong>
+                        <p class="mb-0 mt-2 small">${error.message}</p>
+                    </div>
+                `;
+            }
+        }
+
+        // Export to PNG
+        async function exportPNG() {
+            try {
+                const svg = document.querySelector('#mermaidPreview svg');
+                if (!svg) {
+                    showToast('Export failed', 'No flowchart to export', 'danger');
+                    return;
+                }
+
+                // Get SVG dimensions
+                const bbox = svg.getBBox();
+                const viewBox = svg.viewBox.baseVal;
+                
+                // Determine actual width and height
+                let width = svg.width.baseVal.value || viewBox.width || bbox.width;
+                let height = svg.height.baseVal.value || viewBox.height || bbox.height;
+                
+                // Clone SVG and set explicit dimensions
+                const svgClone = svg.cloneNode(true);
+                svgClone.setAttribute('width', width);
+                svgClone.setAttribute('height', height);
+                
+                const svgData = new XMLSerializer().serializeToString(svgClone);
+                const canvas = document.createElement('canvas');
+                const ctx = canvas.getContext('2d');
+                const img = new Image();
+
+                img.onload = function() {
+                    // Set canvas size to 3x for high resolution
+                    canvas.width = width * 3;
+                    canvas.height = height * 3;
+                    ctx.scale(3, 3);
+                    ctx.drawImage(img, 0, 0, width, height);
+
+                    canvas.toBlob(function(blob) {
+                        const url = URL.createObjectURL(blob);
+                        const a = document.createElement('a');
+                        a.href = url;
+                        a.download = 'xsukax-flowchart.png';
+                        a.click();
+                        URL.revokeObjectURL(url);
+                        showToast('Success!', 'Flowchart exported as PNG', 'success');
+                    });
+                };
+
+                img.src = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(svgData)));
+            } catch (error) {
+                showToast('Export failed', error.message, 'danger');
+            }
+        }
+
+        // Export to SVG
+        function exportSVG() {
+            try {
+                const svg = document.querySelector('#mermaidPreview svg');
+                if (!svg) {
+                    showToast('Export failed', 'No flowchart to export', 'danger');
+                    return;
+                }
+
+                const svgData = new XMLSerializer().serializeToString(svg);
+                const blob = new Blob([svgData], { type: 'image/svg+xml' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'xsukax-flowchart.svg';
+                a.click();
+                URL.revokeObjectURL(url);
+                showToast('Success!', 'Flowchart exported as SVG', 'success');
+            } catch (error) {
+                showToast('Export failed', error.message, 'danger');
+            }
+        }
+
+        // Export to Markdown
+        function exportMarkdown() {
+            try {
+                const title = document.getElementById('chartTitle').value;
+                const mermaidCode = generateMermaidCode();
+                
+                const markdown = `# ${title}\n\n\`\`\`mermaid\n${mermaidCode}\`\`\`\n`;
+                
+                const blob = new Blob([markdown], { type: 'text/markdown' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'xsukax-flowchart.md';
+                a.click();
+                URL.revokeObjectURL(url);
+                showToast('Success!', 'Flowchart exported as Markdown', 'success');
+            } catch (error) {
+                showToast('Export failed', error.message, 'danger');
+            }
+        }
+
+        // Show toast notification
+        function showToast(title, message, type = 'info') {
+            const toastContainer = document.querySelector('.toast-container');
+            const toastId = `toast-${Date.now()}`;
+            
+            const bgColor = type === 'success' ? 'bg-success' : 
+                           type === 'danger' ? 'bg-danger' : 
+                           type === 'warning' ? 'bg-warning' : 'bg-info';
+            
+            const toast = document.createElement('div');
+            toast.className = `toast align-items-center text-white ${bgColor} border-0`;
+            toast.id = toastId;
+            toast.setAttribute('role', 'alert');
+            toast.setAttribute('aria-live', 'assertive');
+            toast.setAttribute('aria-atomic', 'true');
+            
+            toast.innerHTML = `
+                <div class="d-flex">
+                    <div class="toast-body">
+                        <strong>${title}</strong><br>${message}
+                    </div>
+                    <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+                </div>
+            `;
+            
+            toastContainer.appendChild(toast);
+            const bsToast = new bootstrap.Toast(toast);
+            bsToast.show();
+            
+            toast.addEventListener('hidden.bs.toast', () => {
+                toast.remove();
+            });
+        }
+
+        // Initialize on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            initializeDefaultSample();
+        });
+    </script>
+</body>
+</html>
