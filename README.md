@@ -29,6 +29,7 @@ The application caters to developers, project managers, educators, business anal
 ### Key Capabilities
 
 - **Visual Flowchart Builder**: Create complex flowcharts using an intuitive point-and-click interface
+- **Smart Node Import**: Import nodes from existing Mermaid code and create connections visually
 - **Real-Time Preview**: See changes instantly as you edit nodes and connections
 - **Multiple Export Formats**: Download flowcharts as high-resolution PNG, scalable SVG, or Mermaid markdown
 - **Comprehensive Node Shapes**: Support for 11 different node shapes including rectangles, diamonds, circles, and more
@@ -94,6 +95,13 @@ Five distinct connection styles:
 - **Open Link** (—): Non-directional associations
 - **Dotted Open Link** (⋯): Weak associations
 
+#### 📥 **Smart Node Import**
+- Import nodes from existing Mermaid flowchart code
+- Supports both `graph` and `flowchart` syntax
+- Extracts node shapes, labels, and colors automatically
+- Handles bare node IDs (e.g., `A`, `B`, `C`) and shaped nodes (e.g., `A[Label]`, `B{Decision}`)
+- Creates connections manually via intuitive UI for maximum control
+
 #### 🎨 **Advanced Customization**
 - HTML5 color pickers for node background colors
 - Independent text color selection for optimal contrast
@@ -118,6 +126,7 @@ Five distinct connection styles:
 | **Internet Connection** | CDN only (optional offline with CDN cache) | Often required |
 | **Data Privacy** | 🔒 100% local | ⚠️ Cloud-stored |
 | **Learning Curve** | 📈 Minimal (visual interface) | 📚 Steep (syntax/UI complexity) |
+| **Import Existing Code** | ✅ Yes (nodes) | ⚠️ Limited |
 | **Export Formats** | PNG, SVG, Markdown | Varies |
 | **Cost** | 💯 Free & Open Source | Often paid |
 | **Cross-Platform** | ✅ Any browser | Platform-dependent |
@@ -212,7 +221,7 @@ graph LR
 
 #### 2. Creating Your First Flowchart
 
-**Step-by-Step Workflow:**
+**Method 1: Build from Scratch**
 
 1. **Set Chart Metadata**
    - Enter a descriptive title in the "Chart Title" field
@@ -243,9 +252,54 @@ graph LR
    - Click **SVG** for scalable vector graphics
    - Click **MD** for Mermaid markdown code
 
+**Method 2: Import Existing Nodes**
+
+1. **Click "Import Nodes" Button**
+   - Located in the top navigation bar
+
+2. **Paste Mermaid Code**
+   - Supports both `graph` and `flowchart` syntax
+   - Handles all node shapes and styles
+   - Example:
+     ```mermaid
+     flowchart TB
+         A[Start Process]
+         B{Is Valid?}
+         C((End))
+         style A fill:#4CAF50,color:#fff
+         style B fill:#FF9800,color:#fff
+     ```
+
+3. **Click "Import Nodes"**
+   - All nodes are extracted and added to your workspace
+   - Connections are cleared (you'll add them manually)
+   - Colors and shapes are preserved
+
+4. **Add Connections Manually**
+   - Use the visual interface to connect nodes
+   - This gives you full control over the flowchart structure
+
 ### Common Workflows
 
-#### Workflow 1: Simple Process Flow
+#### Workflow 1: Import and Enhance Existing Flowchart
+
+```mermaid
+flowchart TB
+    Import[Import Nodes<br/>from Code] --> Review[Review<br/>Imported Nodes]
+    Review --> Customize[Customize Colors<br/>& Shapes]
+    Customize --> Connect[Add Connections<br/>Manually]
+    Connect --> Export[Export Final<br/>Flowchart]
+```
+
+**Steps:**
+1. Copy existing Mermaid flowchart code
+2. Click "Import Nodes" and paste code
+3. Review imported nodes (shapes, colors, labels)
+4. Modify as needed using visual controls
+5. Create connections between nodes
+6. Export in your preferred format
+
+#### Workflow 2: Simple Process Flow
 
 ```mermaid
 flowchart TB
@@ -262,7 +316,7 @@ flowchart TB
 2. Add 5 connections following the flow above
 3. Add labels "Yes" and "No" to decision branches
 
-#### Workflow 2: System Architecture Diagram
+#### Workflow 3: System Architecture Diagram
 
 ```mermaid
 flowchart LR
@@ -282,6 +336,43 @@ flowchart LR
 5. Create connections to show data flow
 
 ### Advanced Techniques
+
+#### Importing Complex Flowcharts
+
+The import feature handles various Mermaid syntax formats:
+
+**Bare Node IDs:**
+```mermaid
+graph TD;
+A-->B;
+A-->C;
+```
+Result: Nodes A, B, C (rectangles) are imported
+
+**Shaped Nodes:**
+```mermaid
+flowchart LR
+A[Process 1]
+B{Decision}
+C((End))
+```
+Result: Nodes with correct shapes and labels
+
+**Old Mermaid Syntax:**
+```mermaid
+graph LR
+A[Start] -- Label --> B[End]
+```
+Result: Nodes A and B imported (connection labels ignored)
+
+**Mixed Syntax:**
+```mermaid
+flowchart TB
+A[Start]
+B
+C{Decision}
+```
+Result: All three nodes imported with appropriate shapes
 
 #### Customizing Colors for Emphasis
 
@@ -305,21 +396,13 @@ flowchart TB
 
 Use Rhombus shapes for all decision points and ensure clear yes/no labels on connections.
 
-#### Organizing Complex Flowcharts
-
-For large diagrams:
-1. Group related nodes with similar colors
-2. Use consistent shapes for similar functions
-3. Minimize crossing connections by adjusting node order
-4. Use dotted connections for secondary/optional flows
-
 ### Keyboard Shortcuts and Tips
 
 - **Tab**: Navigate between form fields
 - **Enter**: Submit form inputs (triggers preview update)
 - **Delete Node**: Automatically removes connected edges
 - **Minimum Nodes**: System enforces minimum of 2 nodes
-- **Connection Validation**: Cannot connect a node to itself
+- **Import**: Only imports nodes, not connections (for better control)
 
 ### Troubleshooting
 
@@ -328,6 +411,7 @@ For large diagrams:
 | Preview not updating | Check browser console for errors; refresh page |
 | Export button disabled | Ensure flowchart has rendered successfully |
 | Color not applying | Verify hex color format; ensure contrast for visibility |
+| Import not working | Check Mermaid syntax; ensure node definitions are valid |
 | Connection not showing | Verify both nodes exist; check connection type selection |
 | PNG export cropped | Issue resolved in latest version; ensure you have updated code |
 
@@ -351,6 +435,7 @@ flowchart TB
     
     subgraph Core_Functions
         State[Application State Management]
+        Import[Node Import Parser]
         Render[Real-time Rendering Engine]
         Export[Export Module]
     end
@@ -358,6 +443,7 @@ flowchart TB
     HTML --> JS
     CSS --> Frontend
     JS --> State
+    State --> Import
     State --> Render
     Render --> Mermaid
     JS --> Export
@@ -379,6 +465,30 @@ The application maintains state through JavaScript objects:
     { from: 'node1', to: 'node2', type: 'solid', label: 'Next' }
   ]
 }
+```
+
+### Import Process Flow
+
+```mermaid
+sequenceDiagram
+    participant User
+    participant UI
+    participant Parser
+    participant State
+    participant Preview
+
+    User->>UI: Click "Import Nodes"
+    User->>UI: Paste Mermaid Code
+    UI->>Parser: Parse Code
+    Parser->>Parser: Extract Direction
+    Parser->>Parser: Extract Styles
+    Parser->>Parser: Extract Nodes (Shapes)
+    Parser->>Parser: Extract Bare Node IDs
+    Parser->>State: Update Nodes Array
+    Parser->>State: Clear Connections
+    State->>UI: Render Node List
+    State->>Preview: Update Preview
+    Preview->>User: Show Success Toast
 ```
 
 ### Rendering Pipeline
@@ -500,7 +610,7 @@ git push origin feature/your-feature-name
 - Write single-line CSS rules for consistency
 - Add comments for complex logic
 - Ensure cross-browser compatibility
-- Test export functionality thoroughly
+- Test import functionality thoroughly with various Mermaid syntax
 
 ### Testing Checklist
 
@@ -508,6 +618,12 @@ git push origin feature/your-feature-name
 - [ ] All node shapes render correctly
 - [ ] All connection types display properly
 - [ ] Color pickers function as expected
+- [ ] Import Nodes feature works with:
+  - [ ] Bare node IDs (A, B, C)
+  - [ ] Shaped nodes (A[Label], B{Label})
+  - [ ] Mixed syntax
+  - [ ] Old Mermaid syntax (-- text -->)
+  - [ ] Both `graph` and `flowchart` keywords
 - [ ] Real-time preview updates smoothly
 - [ ] PNG export captures entire flowchart
 - [ ] SVG export maintains quality
